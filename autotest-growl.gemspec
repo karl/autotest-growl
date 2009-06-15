@@ -2,12 +2,12 @@
 
 Gem::Specification.new do |s|
   s.name = %q{autotest-growl}
-  s.version = "0.1.1"
+  s.version = "0.1.2"
 
   s.required_rubygems_version = Gem::Requirement.new(">= 0") if s.respond_to? :required_rubygems_version=
-  s.authors = ["Sven Schwyn"]
+  s.authors = ["Sven Schwyn", "Karl O'Keeffe"]
   s.date = %q{2009-06-03}
-  s.description = %q{This gem aims to improve support for Growl notification by ZenTest's autotest. It comes with a nice colored Ruby icon set and - for now - supports Cucumber by means of a workaround.}
+  s.description = %q{This gem aims to improve support for Growl notification by ZenTest's autotest. It comes with a nice colored Ruby icon set and supports Cucumber.}
   s.email = ["ruby@bitcetera.com"]
   s.extra_rdoc_files = ["History.txt", "Manifest.txt", "PostInstall.txt", "README.rdoc"]
   s.files = ["History.txt", "Manifest.txt", "PostInstall.txt", "README.rdoc", "Rakefile", "autotest-growl.gemspec", "growl/growlnotify", "img/error.png", "img/failed.png", "img/passed.png", "img/pending.png", "lib/autotest-growl.rb", "lib/autotest/growl.rb", "script/console", "script/destroy", "script/generate", "spec/autotest-growl_spec.rb", "spec/spec.opts", "spec/spec_helper.rb", "tasks/rspec.rake"]
