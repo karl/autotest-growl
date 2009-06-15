@@ -102,22 +102,21 @@ module Autotest::Growl
     false
   end
 
-  # FIXME: This is a temporary workaround until Cucumber is properly integrated!
-  Autotest.add_hook :waiting do |autotest|
-    if @run_scenarios && !autotest.results.grep(/^\d+ scenario/).empty?
-      gist = autotest.results.grep(/\d+\s+(scenario|step)s?/).map {|s| s.gsub(/(\e.*?m|\n)/, '') }.join(" / ")
-      if gist == ''
-        growl @label + 'Cannot run scenarios.', '', 'error', 2
-      else
-        if gist =~ /failed/
-          growl @label + 'Some scenarios have failed.', gist, 'failed', 2
-        elsif gist =~ /undefined/
-          growl @label + 'Some scenarios are undefined.', gist, 'pending', -1
-        else
-          growl @label + 'All scenarios have passed.', gist, 'passed', -2
-        end
-      end
-    end
+  # Growl results of Cucumber
+  Autotest.add_hook :ran_features do |autotest|
+ 
+	gist = autotest.results.grep(/\d+\s+scenario.*\)/).join(" / ").strip()
+	if gist == ''
+	  growl @label + 'Cannot run scenarios.', '', 'error'
+	else
+	  if gist =~ /[1-9]\d*\s+(failed)/
+	    growl @label + 'Some scenarios have failed.', gist, 'failed'
+	  elsif gist =~ /pending/
+	    growl @label + 'Some scenarios are skipped.', gist, 'skipped'
+	  else
+	    growl @label + 'All scenarios have passed.', gist, 'passed'
+	  end
+	end
     false
   end
 
