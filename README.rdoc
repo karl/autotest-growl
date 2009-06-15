@@ -7,8 +7,8 @@
 == DESCRIPTION:
 
 This gem aims to improve support for Growl notification by ZenTest's autotest.
-It comes with a nice colored Ruby icon set and - for now - supports Cucumber 
-notifications by means of a workaround.
+It comes with a nice colored Ruby icon set and supports Cucumber 
+notifications.
 
 The priority of a notification is set according to the actual result so you
 can  configure Growl to style the notifications differently based on these
