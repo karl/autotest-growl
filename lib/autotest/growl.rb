@@ -105,18 +105,21 @@ module Autotest::Growl
   # Growl results of Cucumber
   Autotest.add_hook :ran_features do |autotest|
  
-	gist = autotest.results.grep(/\d+\s+scenario.*\)/).join(" / ").strip()
-	if gist == ''
-	  growl @label + 'Cannot run scenarios.', '', 'error'
-	else
-	  if gist =~ /[1-9]\d*\s+(failed)/
-	    growl @label + 'Some scenarios have failed.', gist, 'failed'
-	  elsif gist =~ /pending/
-	    growl @label + 'Some scenarios are skipped.', gist, 'skipped'
-	  else
-	    growl @label + 'All scenarios have passed.', gist, 'passed'
-	  end
-	end
+  	gist = autotest.results.grep(/\d+\s+scenario.*\)/).join(" / ").strip()
+  	if gist == ''
+  	  growl @label + 'Cannot run scenarios.', '', 'error'
+  	else
+  	  if gist =~ /[1-9]\d*\s+(failed)/
+  	    growl @label + 'Some scenarios have failed.', gist, 'failed'
+  	  elsif gist =~ /[1-9]\d*\s+(undefined)/
+  	    growl @label + 'Some scenarios are undefinied.', gist, 'pending'
+  	  elsif gist =~ /[1-9]\d*\s+(pending)/
+  	    growl @label + 'Some scenarios are pending.', gist, 'pending'
+  	  else
+  	    growl @label + 'All scenarios have passed.', gist, 'passed'
+  	  end
+
+  	end
     false
   end
 
