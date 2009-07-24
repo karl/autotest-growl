@@ -1,3 +1,5 @@
+require 'extensions/string'
+
 class Result
 
   ##
@@ -52,7 +54,7 @@ class Result
   ##
   # Get a labelled result number. The prefix is removed and the label pluralized if necessary.
   def get(kind)
-    "#{@numbers[kind]} #{kind.sub(/^.*-/, '')}#{'s' if @numbers[kind] != 1 && !kind.end_with?('ed', 'ing')}" if @numbers[kind]
+    "#{@numbers[kind]} #{kind.sub(/^.*-/, '')}#{'s' if @numbers[kind] != 1 && !(kind.ends_with?('ed') || kind.ends_with?('ing') )}" if @numbers[kind]
   end
 
   ##

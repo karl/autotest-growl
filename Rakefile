@@ -18,6 +18,7 @@ $hoe = Hoe.spec 'autotest-growl' do
   self.rubyforge_name       = self.name
   self.extra_deps           = [
                                 ['ZenTest','>= 4.1.3'],
+                                ['extensions', '>= 0.6.0']
                               ]
 end
 
