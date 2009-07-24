@@ -5,6 +5,6 @@ require File.join(File.dirname(__FILE__), 'autotest', 'growl')
 
 module AutotestGrowl
 
-  VERSION  = '0.1.7'
+  VERSION  = '0.1.8'
 
 end
