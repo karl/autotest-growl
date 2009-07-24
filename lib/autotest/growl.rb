@@ -1,5 +1,6 @@
 require 'rubygems'
 require 'autotest'
+require File.join(File.dirname(__FILE__), 'result')
 
 ##
 # Autotest::Growl
@@ -13,12 +14,15 @@ require 'autotest'
 #   require 'autotest/growl'
 module Autotest::Growl
 
-  GEM_PATH = File.expand_path(File.join(File.dirname(__FILE__), '../..'))
+  GEM_PATH = File.expand_path(File.join(File.dirname(__FILE__), '..', '..'))
 
   @label = ''
   @modified_files = []
+  @ran_tests = false
+  @ran_features = false
 
   @@remote_notification = false
+  @@one_notification_per_run = false
   @@clear_terminal = true
   @@hide_label = false
   @@show_modified_files = false
@@ -27,6 +31,12 @@ module Autotest::Growl
   # Whether to use remote or local notificaton (default).
   def self.remote_notification=(boolean)
     @@remote_notification = boolean
+  end
+
+  ##
+  # Whether to limit the number of notifications per run to one or not (default).
+  def self.one_notification_per_run=(boolean)
+    @@one_notification_per_run = boolean
   end
 
   ##
@@ -54,28 +64,31 @@ module Autotest::Growl
 
   ##
   # Display a message through Growl.
-  def self.growl title, message, icon, priority=0, stick=""
+  def self.growl(title, message, icon, priority=0, stick="")
     growl = File.join(GEM_PATH, 'growl', 'growlnotify')
     image = File.join(ENV['HOME'], '.autotest-growl', "#{icon}.png")
     image = File.join(GEM_PATH, 'img', "#{icon}.png") unless File.exists?(image)
 
-	if is_windows?
-		growl += '.com'
-		cmd = "#{growl} #{message.inspect} /a:\"autotest\" /r:\"Autotest\" /n:\"Autotest\" /i:\"#{image}\" /p:#{priority} /t:\"#{title}\""
-	else 
-		if @@remote_notification
-		  cmd = "#{growl} -H localhost -n autotest --image '#{image}' -p #{priority} -m #{message.inspect} '#{title}' #{stick}"
-		else
-		  cmd = "#{growl} -n autotest --image '#{image}' -p #{priority} -m #{message.inspect} '#{title}' #{stick}"
-		end
-	end
+    case RUBY_PLATFORM
+    when /mswin/
+      growl += '.com'
+      system %(#{growl} #{message.inspect} /a:"autotest" /r:"Autotest" /n:"Autotest" /i:"#{image}" /p:#{priority} /t:"#{title}")
+    when /darwin/
+      if @@remote_notification
+        system %(#{growl} -H localhost -n autotest --image '#{image}' -p #{priority} -m '#{message}' '#{title}' #{stick})
+      else
+        system %(#{growl} -n autotest --image '#{image}' -p #{priority} -m '#{message}' '#{title}' #{stick})
+      end
+    else
+      raise "#{RUBY_PLATFORM} is not supported by autotest-growl" 
+    end
 
-	system cmd
   end
 
   ##
   # Display the modified files.
   Autotest.add_hook :updated do |autotest, modified|
+    @ran_tests = @ran_features = false
     if @@show_modified_files
       if modified != @last_modified
         growl @label + 'Modifications detected.', modified.collect {|m| m[0]}.join(', '), 'info', 0
@@ -89,50 +102,73 @@ module Autotest::Growl
   # Set the label and clear the terminal.
   Autotest.add_hook :run_command do
     @label = File.basename(Dir.pwd).upcase + ': ' if !@@hide_label
-    @run_scenarios = false
     print "\n"*2 + '-'*80 + "\n"*2
     print "\e[2J\e[f" if @@clear_terminal
     false
   end
 
   ##
-  # Parse the test results and send them to Growl.
+  # Parse the RSpec and Test::Unit results and send them to Growl.
   Autotest.add_hook :ran_command do |autotest|
-    gist = autotest.results.grep(/\d+\s+(example|test)s?/).map {|s| s.gsub(/(\e.*?m|\n)/, '') }.join(" / ")
-    if gist == ''
-      growl @label + 'Cannot run tests.', '', 'error', 2
-    else
-      if gist =~ /[1-9]\d*\s+(failure|error)/
-        growl @label + 'Some tests have failed.', gist, 'failed', 2
-      elsif gist =~ /pending/
-        growl @label + 'Some tests are pending.', gist, 'pending', -1
-        @run_scenarios = true
+    unless @@one_notification_per_run && @ran_tests
+      result = Result.new(autotest)
+      if result.exists?
+        case result.framework
+        when 'test-unit'        
+          if result.has?('test-error')
+            growl @label + 'Cannot run some unit tests.', "#{result.get('test-error')} in #{result.get('test')}", 'error', 2
+          elsif result.has?('test-failed')
+            growl @label + 'Some unit tests failed.', "#{result['test-failed']} of #{result.get('test-assertion')} in #{result.get('test')} failed", 'failed', 2
+          else
+            growl @label + 'All unit tests passed.', "#{result.get('test-assertion')} in #{result.get('test')}", 'passed', -2
+          end
+        when 'rspec'
+          if result.has?('example-failed')
+            growl @label + 'Some RSpec examples failed.', "#{result['example-failed']} of #{result.get('example')} failed", 'failed', 2
+          elsif result.has?('example-pending')
+            growl @label + 'Some RSpec examples are pending.', "#{result['example-pending']} of #{result.get('example')} pending", 'pending', -1
+          else
+            growl @label + 'All RSpec examples passed.', "#{result.get('example')}", 'passed', -2
+          end
+        end
       else
-        growl @label + 'All tests have passed.', gist, 'passed', -2
-        @run_scenarios = true
+        growl @label + 'Could not run tests.', '', 'error', 2
       end
+      @ran_test = true
     end
     false
   end
 
-  # Growl results of Cucumber
+  ##
+  # Parse the Cucumber results and sent them to Growl.
   Autotest.add_hook :ran_features do |autotest|
- 
-  	gist = autotest.results.grep(/\d+\s+scenario.*\)/).join(" / ").strip()
-  	if gist == ''
-  	  growl @label + 'Cannot run scenarios.', '', 'error'
-  	else
-  	  if gist =~ /[1-9]\d*\s+(failed)/
-  	    growl @label + 'Some scenarios have failed.', gist, 'failed'
-  	  elsif gist =~ /[1-9]\d*\s+(undefined)/
-  	    growl @label + 'Some scenarios are undefinied.', gist, 'pending'
-  	  elsif gist =~ /[1-9]\d*\s+(pending)/
-  	    growl @label + 'Some scenarios are pending.', gist, 'pending'
-  	  else
-  	    growl @label + 'All scenarios have passed.', gist, 'passed'
-  	  end
-
-  	end
+    unless @@one_notification_per_run && @ran_features
+      result = Result.new(autotest)
+      if result.exists?
+        case result.framework
+        when 'cucumber'
+          explanation = []
+          if result.has?('scenario-undefined') || result.has?('step-undefined')
+            explanation << "#{result['scenario-undefined']} of #{result.get('scenario')} not defined" if result['scenario-undefined']
+            explanation << "#{result['step-undefined']} of #{result.get('step')} not defined" if result['step-undefined']
+            growl @label + 'Some Cucumber scenarios are not defined.', "#{explanation.join("\n")}", 'pending', -1          
+          elsif result.has?('scenario-failed') || result.has?('step-failed')
+            explanation << "#{result['scenario-failed']} of #{result.get('scenario')} failed" if result['scenario-failed']
+            explanation << "#{result['step-failed']} of #{result.get('step')} failed" if result['step-failed']
+            growl @label + 'Some Cucumber scenarios failed.', "#{explanation.join("\n")}", 'failed', 2
+          elsif result.has?('scenario-pending') || result.has?('step-pending')
+            explanation << "#{result['scenario-pending']} of #{result.get('scenario')} pending" if result['scenario-pending']
+            explanation << "#{result['step-pending']} of #{result.get('step')} pending" if result['step-pending']
+            growl @label + 'Some Cucumber scenarios are pending.', "#{explanation.join("\n")}", 'pending', -1          
+          else
+            growl @label + 'All Cucumber features passed.', '', 'passed', -2
+          end      
+        end
+      else
+        growl @label + 'Could not run features.', '', 'error', 2
+      end
+      @ran_features = true
+    end
     false
   end
 
